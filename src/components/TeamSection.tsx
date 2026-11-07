@@ -13,7 +13,7 @@ const TeamSection = () => {
       name: "Universitas Airlangga",
       role: "Nutrition Research ",
       // description: "Berperan sebagai mitra riset bidang gizi dan kesehatan masyarakat dalam pengembangan aplikasi berbasis data lokal.",
-      imageUrl: "https://unair.ac.id/wp-content/uploads/2023/11/Logo-Branding-UNAIR-biru.png",
+      imageUrl: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Logo-Branding-UNAIR-biru.png/250px-Logo-Branding-UNAIR-biru.png?utm_source=id.wikipedia.org&utm_campaign=parser&utm_content=thumbnail",
       isOnline: true
     },
     {
