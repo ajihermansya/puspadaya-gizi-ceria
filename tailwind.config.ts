@@ -102,6 +102,11 @@ export default {
 					'33%': { transform: 'translate(30px, -50px) scale(1.1)' },
 					'66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
 					'100%': { transform: 'translate(0px, 0px) scale(1)' }
+				},
+				// Garis tipis yang berjalan di atas ChartCard saat data di-refetch
+				'chartcard-sweep': {
+					'0%': { transform: 'translateX(-100%)' },
+					'100%': { transform: 'translateX(400%)' }
 				}
 			},
 			animation: {
@@ -111,7 +116,8 @@ export default {
 				'pulse-gentle': 'pulse-gentle 3s ease-in-out infinite',
 				bounce: 'bounce 1s infinite',
 				pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-				blob: 'blob 7s infinite'
+				blob: 'blob 7s infinite',
+				'chartcard-sweep': 'chartcard-sweep 1.1s ease-in-out infinite'
 			}
 		}
 	},

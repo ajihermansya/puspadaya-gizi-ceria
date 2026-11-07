@@ -1,15 +1,53 @@
-/api/*                   http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/:splat               200
-/balita/*                http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/balita-status/:splat  200
-/data-skdn/*             http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/skdn-data/:splat     200
-/progres-status-gizi/*   http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/balita-status-period/:splat  200
-/anak-mpasi/*            http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/anak-mpasi/:splat   200
-/asi-eksklusif/*         http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/asi-eksklusif/:splat 200
-/ibu-hamil/*             http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/ibu-hamil/:splat    200
-/ibu-hamil-periodik/*    http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/ibu-hamil-periodik/:splat 200
-/jenis-kompetensi/*      http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/jenis-kompetensi/:splat 200
-/waktu-kunjungan/*       http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-total/:splat 200
-/waktu-jadwal-posyandu/* http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-jadwal-posyandu/:splat 200
-/waktu-kunjungan-anak/*  http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-anak/:splat 200
-/waktu-kunjungan-ibu-hamil/*   http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-ibu-hamil/:splat 200
+# Proxy endpoint API ke backend.
+#
+# Aturan API HARUS berada di atas SPA fallback: match pertama yang menang.
+#
+# Tiap endpoint punya dua baris — path dasar dan varian splat. Aplikasi
+# memanggil `/balita?kabupaten_kota=...` tanpa segmen path setelahnya, dan
+# pola `/balita/*` tidak dijamin cocok dengan `/balita` saja. Query string
+# diteruskan otomatis, jadi baris path dasar tidak perlu `:splat`.
+#
+# Target memakai http:// karena backend belum melayani https (koneksi https ke
+# host ini gagal, sertifikatnya tidak ada). Naikkan ke https setelah backend
+# punya sertifikat — hop proxy ke backend saat ini tidak terenkripsi.
 
+/api                            http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard                           200
+/api/*                          http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/:splat                    200
 
+/balita                         http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/balita-status             200
+/balita/*                       http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/balita-status/:splat      200
+
+/data-skdn                      http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/skdn-data                 200
+/data-skdn/*                    http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/skdn-data/:splat          200
+
+/progres-status-gizi            http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/balita-status-period       200
+/progres-status-gizi/*          http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/balita-status-period/:splat 200
+
+/anak-mpasi                     http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/anak-mpasi                200
+/anak-mpasi/*                   http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/anak-mpasi/:splat         200
+
+/asi-eksklusif                  http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/asi-eksklusif             200
+/asi-eksklusif/*                http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/asi-eksklusif/:splat      200
+
+/ibu-hamil                      http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/ibu-hamil                 200
+/ibu-hamil/*                    http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/ibu-hamil/:splat          200
+
+/ibu-hamil-periodik             http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/ibu-hamil-periodik        200
+/ibu-hamil-periodik/*           http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/ibu-hamil-periodik/:splat 200
+
+/jenis-kompetensi               http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/jenis-kompetensi          200
+/jenis-kompetensi/*             http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/jenis-kompetensi/:splat   200
+
+/waktu-jadwal-posyandu          http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-jadwal-posyandu     200
+/waktu-jadwal-posyandu/*        http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-jadwal-posyandu/:splat 200
+
+/waktu-kunjungan-anak           http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-anak      200
+/waktu-kunjungan-anak/*         http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-anak/:splat 200
+
+/waktu-kunjungan-ibu-hamil      http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-ibu-hamil 200
+/waktu-kunjungan-ibu-hamil/*    http://gsg4k8os8gwsc4ksk4kkgg48.103.109.210.102.sslip.io/api/v1/public-dashboard/waktu-kunjungan-ibu-hamil/:splat 200
+
+# SPA fallback — harus baris terakhir.
+# Tanpa ini, refresh di /team atau /kebijakanprivasi mengembalikan 404 karena
+# tidak ada file di path tersebut; routing ditangani react-router di browser.
+/*                              /index.html                                                                                               200

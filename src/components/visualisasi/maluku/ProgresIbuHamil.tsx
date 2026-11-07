@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -13,6 +13,9 @@ import {
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { MoreVertical } from "lucide-react";
 import * as htmlToImage from "html-to-image";
+import ChartCard from "@/components/ui/ChartCard";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
+import { MONTH_LABELS_ID, getMonthNumber } from "@/lib/periode";
 
 interface DataSectionProps {
   region: string;
@@ -30,37 +33,30 @@ interface IbuHamilData {
   terlaluMuda: number;
 }
 
-const MONTH_LABELS_ID = [
-  "Januari",
-  "Februari",
-  "Maret",
-  "April",
-  "Mei",
-  "Juni",
-  "Juli",
-  "Agustus",
-  "September",
-  "Oktober",
-  "November",
-  "Desember",
-];
-
-const getMonthNumber = (monthName: string): number => {
-  const months = [
-    "januari", "februari", "maret", "april", "mei", "juni",
-    "juli", "agustus", "september", "oktober", "november", "desember"
-  ];
-  const monthsEn = [
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december"
-  ];
-
-  const lowerName = monthName.toLowerCase();
-  let index = months.indexOf(lowerName);
-  if (index === -1) {
-    index = monthsEn.indexOf(lowerName);
+type PeriodikResponse = Record<
+  string,
+  {
+    kek?: number;
+    pendek?: number;
+    terlalu_tua?: number;
+    terlalu_muda?: number;
   }
-  return index + 1;
+>;
+
+const CHART_HEIGHT = 400;
+
+const COLORS = {
+  kek: "#1f77b4",
+  pendek: "#2ca02c",
+  terlaluTua: "#d62728",
+  terlaluMuda: "#9467bd",
+};
+
+const LINE_STYLES = {
+  kek: { strokeDasharray: "0" },
+  pendek: { strokeDasharray: "10 5" },
+  terlaluTua: { strokeDasharray: "3 3 9 3" },
+  terlaluMuda: { strokeDasharray: "1 1" },
 };
 
 const buildZeroSeries = (monthLimit: number): IbuHamilData[] => {
@@ -74,68 +70,31 @@ const buildZeroSeries = (monthLimit: number): IbuHamilData[] => {
   }));
 };
 
-const ProgresIbuHamilMaluku: React.FC<DataSectionProps> = ({ region, desa, posyandu, month, year }) => {
+const ProgresIbuHamilMaluku: React.FC<DataSectionProps> = ({
+  region,
+  desa,
+  posyandu,
+  month,
+  year,
+}) => {
   const chartRef = useRef<HTMLDivElement>(null);
-  const [ibuHamilData, setIbuHamilData] = useState<IbuHamilData[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const query = new URLSearchParams({
-          kabupaten_kota: region,
-          ...(desa ? { desa } : {}),
-          ...(posyandu ? { posyandu } : {}),
-          bulan: "0",
-          tahun: year.toString(),
-        });
-
-        const res = await fetch(`/ibu-hamil-periodik?${query.toString()}`);
-        const json = await res.json();
-
-        if (json.data) {
-          let mappedData: IbuHamilData[] = Object.entries(json.data).map(
-            ([bulan, values]: [string, any]) => ({
-              bulan,
-              kek: values.kek ?? 0,
-              pendek: values.pendek ?? 0,
-              terlaluTua: values.terlalu_tua ?? 0,
-              terlaluMuda: values.terlalu_muda ?? 0,
-            })
-          );
-
-          mappedData.sort((a, b) => getMonthNumber(a.bulan) - getMonthNumber(b.bulan));
-
-          if (month > 0) {
-            mappedData = mappedData.filter((item) => {
-              const itemMonthNum = getMonthNumber(item.bulan);
-              return itemMonthNum > 0 && itemMonthNum <= month;
-            });
-          }
-
-          setIbuHamilData(mappedData);
-        } else {
-          setIbuHamilData(buildZeroSeries(month));
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setIbuHamilData(buildZeroSeries(month));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (region) fetchData();
-
-  }, [region, desa, posyandu, month, year]);
+  // periodScope "year": satu response dipakai untuk semua pilihan bulan,
+  // pemotongan sampai bulan terpilih dilakukan di bawah tanpa fetch ulang.
+  const { data, isFirstLoad, isRefreshing, isError, isEmpty, error, refetch } =
+    useDashboardQuery<PeriodikResponse>(
+      "/ibu-hamil-periodik",
+      { region, desa, posyandu, month, year },
+      { periodScope: "year" },
+    );
 
   const handleDownload = async (format: "png" | "jpeg") => {
     if (!chartRef.current) return;
-    const options = { backgroundColor: "#ffffff" };
     const dataUrl =
       format === "png"
-        ? await htmlToImage.toPng(chartRef.current, options)
+        ? await htmlToImage.toPng(chartRef.current, {
+            backgroundColor: "#ffffff",
+          })
         : await htmlToImage.toJpeg(chartRef.current, {
             quality: 0.95,
             backgroundColor: "#ffffff",
@@ -146,48 +105,53 @@ const ProgresIbuHamilMaluku: React.FC<DataSectionProps> = ({ region, desa, posya
     link.click();
   };
 
-  if (loading) {
-    return (
-      <div className="text-center py-10 text-gray-500">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-3"></div>
-          <p>Memuat data {region}...</p>
-        </div>
-      </div>
-    );
-  }
+  const ibuHamilData: IbuHamilData[] = React.useMemo(() => {
+    if (!data) return buildZeroSeries(month);
 
-  const COLORS = {
-    kek: "#1f77b4",
-    pendek: "#2ca02c",
-    terlaluTua: "#d62728",
-    terlaluMuda: "#9467bd",
-  };
+    const mapped = Object.entries(data)
+      .map(([bulan, values]) => ({
+        bulan,
+        kek: values?.kek ?? 0,
+        pendek: values?.pendek ?? 0,
+        terlaluTua: values?.terlalu_tua ?? 0,
+        terlaluMuda: values?.terlalu_muda ?? 0,
+      }))
+      .sort((a, b) => getMonthNumber(a.bulan) - getMonthNumber(b.bulan));
 
-  const LINE_STYLES = {
-    kek: { strokeDasharray: "0" },
-    pendek: { strokeDasharray: "10 5" },
-    terlaluTua: { strokeDasharray: "3 3 9 3" },
-    terlaluMuda: { strokeDasharray: "1 1" },
-  };
+    if (month > 0) {
+      return mapped.filter((item) => {
+        const n = getMonthNumber(item.bulan);
+        return n > 0 && n <= month;
+      });
+    }
+    return mapped;
+  }, [data, month]);
 
   return (
-    <div className="bg-white rounded-2xl shadow p-6 relative mb-8">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4">
-        <h3 className="text-xl font-semibold text-primary text-center w-full">
-          Progres Ibu Hamil Berisiko - {region} ({year})
-        </h3>
-
+    <ChartCard
+      className="mb-8"
+      title={`Progres Ibu Hamil Berisiko - ${region} (${year})`}
+      bodyHeight={CHART_HEIGHT}
+      skeleton="line"
+      isFirstLoad={isFirstLoad}
+      isRefreshing={isRefreshing}
+      isError={isError}
+      error={error}
+      onRetry={refetch}
+      headerAction={
         <Menu as="div" className="relative inline-block text-left">
-          <MenuButton className="p-2 rounded-full hover:bg-gray-100">
-            <MoreVertical className="w-5 h-5 text-gray-600" />
+          <MenuButton className="rounded-full p-2 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+            <MoreVertical className="h-5 w-5 text-gray-600" />
+            <span className="sr-only">Opsi unduh grafik</span>
           </MenuButton>
-          <MenuItems className="absolute right-0 mt-2 w-40 origin-top-right bg-white border border-gray-200 rounded-lg shadow-lg focus:outline-none">
+          <MenuItems className="absolute right-0 z-10 mt-2 w-40 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg focus:outline-none">
             <MenuItem>
               {({ active }) => (
                 <button
                   onClick={() => handleDownload("png")}
-                  className={`${active ? "bg-gray-100" : ""} w-full px-4 py-2 text-left text-sm text-gray-700`}
+                  className={`${
+                    active ? "bg-gray-100" : ""
+                  } w-full px-4 py-2 text-left text-sm text-gray-700`}
                 >
                   Download PNG
                 </button>
@@ -197,7 +161,9 @@ const ProgresIbuHamilMaluku: React.FC<DataSectionProps> = ({ region, desa, posya
               {({ active }) => (
                 <button
                   onClick={() => handleDownload("jpeg")}
-                  className={`${active ? "bg-gray-100" : ""} w-full px-4 py-2 text-left text-sm text-gray-700`}
+                  className={`${
+                    active ? "bg-gray-100" : ""
+                  } w-full px-4 py-2 text-left text-sm text-gray-700`}
                 >
                   Download JPG
                 </button>
@@ -205,19 +171,34 @@ const ProgresIbuHamilMaluku: React.FC<DataSectionProps> = ({ region, desa, posya
             </MenuItem>
           </MenuItems>
         </Menu>
-      </div>
-
-      <div ref={chartRef} className="bg-white p-6 rounded-lg relative">
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={ibuHamilData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+      }
+      footer={
+        isEmpty ? (
+          <p className="mt-3 text-center text-xs text-amber-600 sm:text-sm">
+            Server belum punya data ibu hamil periodik untuk tahun {year}
+          </p>
+        ) : null
+      }
+    >
+      <div ref={chartRef} className="rounded-lg bg-white">
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <LineChart
+            data={ibuHamilData}
+            margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="bulan"
               interval={0}
               padding={{ left: 20, right: 20 }}
             />
-
-            <YAxis label={{ value: "Persentase (%)", angle: -90, position: "insideLeft" }} />
+            <YAxis
+              label={{
+                value: "Persentase (%)",
+                angle: -90,
+                position: "insideLeft",
+              }}
+            />
             <Tooltip
               formatter={(value, name) => {
                 const labels: Record<string, string> = {
@@ -226,28 +207,52 @@ const ProgresIbuHamilMaluku: React.FC<DataSectionProps> = ({ region, desa, posya
                   terlaluTua: "Terlalu Tua",
                   terlaluMuda: "Terlalu Muda",
                 };
-                return [`${value}%`, labels[name] || name];
+                return [`${value}%`, labels[name as string] || name];
               }}
               labelFormatter={(label) => `Bulan: ${label}`}
             />
             <Legend />
 
-            <Line type="monotone" dataKey="kek" stroke={COLORS.kek} strokeWidth={2} {...LINE_STYLES.kek}>
-              <LabelList dataKey="kek" position="top" formatter={(value: number) => `${value}`} />
+            <Line
+              type="monotone"
+              dataKey="kek"
+              stroke={COLORS.kek}
+              strokeWidth={2}
+              {...LINE_STYLES.kek}
+            >
+              <LabelList dataKey="kek" position="top" />
             </Line>
-            <Line type="monotone" dataKey="pendek" stroke={COLORS.pendek} strokeWidth={2} {...LINE_STYLES.pendek}>
-              <LabelList dataKey="pendek" position="top" formatter={(value: number) => `${value}`} />
+            <Line
+              type="monotone"
+              dataKey="pendek"
+              stroke={COLORS.pendek}
+              strokeWidth={2}
+              {...LINE_STYLES.pendek}
+            >
+              <LabelList dataKey="pendek" position="top" />
             </Line>
-            <Line type="monotone" dataKey="terlaluTua" stroke={COLORS.terlaluTua} strokeWidth={2} {...LINE_STYLES.terlaluTua}>
-              <LabelList dataKey="terlaluTua" position="top" formatter={(value: number) => `${value}`} />
+            <Line
+              type="monotone"
+              dataKey="terlaluTua"
+              stroke={COLORS.terlaluTua}
+              strokeWidth={2}
+              {...LINE_STYLES.terlaluTua}
+            >
+              <LabelList dataKey="terlaluTua" position="top" />
             </Line>
-            <Line type="monotone" dataKey="terlaluMuda" stroke={COLORS.terlaluMuda} strokeWidth={2} {...LINE_STYLES.terlaluMuda}>
-              <LabelList dataKey="terlaluMuda" position="top" formatter={(value: number) => `${value}`} />
+            <Line
+              type="monotone"
+              dataKey="terlaluMuda"
+              stroke={COLORS.terlaluMuda}
+              strokeWidth={2}
+              {...LINE_STYLES.terlaluMuda}
+            >
+              <LabelList dataKey="terlaluMuda" position="top" />
             </Line>
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </ChartCard>
   );
 };
 

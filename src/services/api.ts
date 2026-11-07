@@ -73,12 +73,13 @@ export const fetchDataWithCache = async (endpoint: string, params: Record<string
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      cacheTime: 1000 * 60 * 10, // Cache di memory selama 10 menit
-      staleTime: 1000 * 60 * 5,  // Data dianggap segar selama 5 menit
-      retry: 1,                   // Hanya coba ulang 1 kali
-      retryDelay: 1000,           // Tunggu 1 detik sebelum retry
+      // gcTime: nama v5 untuk cacheTime (v4). Pakai nama lama = opsi diabaikan.
+      gcTime: 1000 * 60 * 10,      // Simpan di memory 10 menit setelah tak dipakai
+      staleTime: 1000 * 60 * 5,    // Data dianggap segar selama 5 menit
+      retry: 2,                    // Coba ulang 2x sebelum menyerah
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000), // backoff: 1s, 2s
       refetchOnWindowFocus: false, // Jangan refetch saat fokus window
-      refetchOnMount: false,      // Jangan refetch saat mount jika data masih fresh
+      refetchOnMount: false,       // Jangan refetch saat mount jika data masih fresh
     },
   },
 });

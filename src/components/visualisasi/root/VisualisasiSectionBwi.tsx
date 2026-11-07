@@ -1,13 +1,11 @@
-import React, { useRef } from "react";
+import React from "react";
 import StatusGiziBwi from "../banyuwangi/StatusGizi";
 import GrafikSKDNBwi from "../banyuwangi/GrafikSKDN";
 import ProgresGiziBwi from "../banyuwangi/ProgresGizi";
-import MpasiAsielkusifBwi from "../banyuwangi/Mpasi";
 import AsiEKlusifBwi from "../banyuwangi/AsiEklusif";
 import RestikIbuHamil from "../banyuwangi/RestikIbuHamil";
 import ProgresIbuHamilBwi from "../banyuwangi/ProgresIbuHamil";
 import KompetensiBebanKerja from "../banyuwangi/KompetensiBebanKerja";
-import DurasiKunjunganRumahBwi from "../banyuwangi/DurasiKunjunganRumahOld";
 import DurasiPelaksanaanPosyanduBwi from "../banyuwangi/DurasiPelaksanaanPosyandu";
 import MpasiBwi from "../banyuwangi/Mpasi";
 import DurasiKunjunganAnakBwi from "../banyuwangi/DurasiKunjunganAnak";

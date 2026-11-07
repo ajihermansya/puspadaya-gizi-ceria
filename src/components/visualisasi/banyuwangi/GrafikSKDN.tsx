@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   CartesianGrid,
   LabelList,
 } from "recharts";
+import ChartCard from "@/components/ui/ChartCard";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
+import { useIsNarrow } from "@/hooks/useIsNarrow";
 
 interface DataSectionProps {
   region: string;
@@ -19,162 +21,129 @@ interface DataSectionProps {
   year: number;
 }
 
-const GrafikSKDNBwi: React.FC<DataSectionProps> = ({ region, desa, posyandu, month, year }) => {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const defaultData = [
-    { name: "S", value: 0, fullName: "Sasaran" },
-    { name: "K", value: 0, fullName: "KMS" },
-    { name: "D", value: 0, fullName: "Ditimbang" },
-    { name: "N", value: 0, fullName: "Naik BB" },
+interface SkdnResponse {
+  S?: number;
+  K?: number;
+  D?: number;
+  N?: number;
+}
+
+const BAR_COLORS: Record<string, string> = {
+  S: "#ef4444",
+  K: "#f59e0b",
+  D: "#10b981",
+  N: "#3b82f6",
+};
+
+const LEGEND = [
+  { key: "S", label: "Sasaran", bg: "bg-red-50", text: "text-red-800" },
+  { key: "K", label: "KMS", bg: "bg-yellow-50", text: "text-yellow-800" },
+  { key: "D", label: "Ditimbang", bg: "bg-green-50", text: "text-green-800" },
+  { key: "N", label: "Naik BB", bg: "bg-blue-50", text: "text-blue-800" },
+];
+
+const GrafikSKDNBwi: React.FC<DataSectionProps> = ({
+  region,
+  desa,
+  posyandu,
+  month,
+  year,
+}) => {
+  const isMobile = useIsNarrow(640);
+
+  const { data, isFirstLoad, isRefreshing, isError, isEmpty, error, refetch } =
+    useDashboardQuery<SkdnResponse>("/data-skdn", {
+      region,
+      desa,
+      posyandu,
+      month,
+      year,
+    });
+
+  const chartData = [
+    { name: "S", value: data?.S ?? 0, fullName: "Sasaran" },
+    { name: "K", value: data?.K ?? 0, fullName: "KMS" },
+    { name: "D", value: data?.D ?? 0, fullName: "Ditimbang" },
+    { name: "N", value: data?.N ?? 0, fullName: "Naik BB" },
   ];
 
-  // Handle responsive behavior
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
+  const maxValue = Math.max(...chartData.map((item) => item.value));
+  const yDomain = [0, Math.ceil(maxValue + maxValue * 0.1) || 1];
+  const chartHeight = isMobile ? 250 : 300;
 
-    // Set initial value
-    handleResize();
-
-    // Add event listener
-    window.addEventListener('resize', handleResize);
-
-    // Clean up event listener
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const query = new URLSearchParams({
-          kabupaten_kota: region,
-          ...(desa ? { desa } : {}),
-          ...(posyandu ? { posyandu } : {}),
-          bulan: month.toString(),
-          tahun: year.toString(),
-        });
-        const res = await fetch(`/data-skdn?${query.toString()}`);
-        const json = await res.json();
-
-        if (json.data) {
-          const mappedData = [
-            { name: "S", value: json.data.S ?? 0, fullName: "Sasaran" },
-            { name: "K", value: json.data.K ?? 0, fullName: "KMS" },
-            { name: "D", value: json.data.D ?? 0, fullName: "Ditimbang" },
-            { name: "N", value: json.data.N ?? 0, fullName: "Naik BB" },
-          ];
-          setData(mappedData);
-        } else {
-          setData(defaultData);
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setData(defaultData);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (region) {
-      fetchData();
-    }
-  }, [region, desa, posyandu, month, year]);
-
-  if (loading) {
-    return (
-      <div className="text-center py-10 text-gray-500">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-3"></div>
-          <p>Memuat data {region} {desa ? `- ${desa}` : ""}{" "}
-          {posyandu ? `- ${posyandu}` : ""}...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const maxValue = data.length > 0 ? Math.max(...data.map((item) => item.value)) : 0;
-  const yDomain = [0, Math.ceil(maxValue + maxValue * 0.1)];
+  const scopeLabel = `${region}${desa ? ` - ${desa}` : ""}${
+    posyandu ? ` - ${posyandu}` : ""
+  }`;
 
   return (
-    <div className="bg-white rounded-2xl shadow p-4 sm:p-6 relative">
-      <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
-        Grafik SKDN {region}
-        {desa ? ` - ${desa}` : ""} {posyandu ? ` - ${posyandu}` : ""}
-      </h3>
-
-      {/* Chart Container with Overlay */}
-      <div className="relative">
-        <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="name" 
-              tick={{ fontSize: isMobile ? 12 : 14 }}
-            />
-            <YAxis 
-              domain={yDomain}
-              tick={{ fontSize: isMobile ? 12 : 14 }}
-            />
-            <Tooltip
-              formatter={(value: number) => [`${value}`, "Jumlah Balita"]}
-              labelFormatter={(name, payload) => {
-                const item = data.find(d => d.name === name);
-                return item ? `${name} (${item.fullName})` : name;
-              }}
-            />
-            <Bar
-              dataKey="value"
-              radius={[4, 4, 0, 0]}
-              shape={(props) => {
-                const { name } = props.payload;
-                const colors = {
-                  "S": "#ef4444",
-                  "K": "#f59e0b",
-                  "D": "#10b981",
-                  "N": "#3b82f6"
-                };
-                return (
-                  <rect
-                    {...props}
-                    fill={colors[name] || "#8884d8"}
-                  />
-                );
-              }}
-            >
-              <LabelList 
-                dataKey="value" 
-                position="top" 
-                fontSize={isMobile ? 10 : 12}
+    <ChartCard
+      title={`Grafik SKDN ${scopeLabel}`}
+      bodyHeight={chartHeight}
+      skeleton="bar"
+      isFirstLoad={isFirstLoad}
+      isRefreshing={isRefreshing}
+      isError={isError}
+      error={error}
+      onRetry={refetch}
+      footer={
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:mt-6 sm:gap-4 md:grid-cols-4">
+            {LEGEND.map((item) => (
+              <div
+                key={item.key}
+                className={`rounded-lg p-2 sm:p-3 ${item.bg}`}
+              >
+                <div className={`text-sm font-bold sm:text-base ${item.text}`}>
+                  {item.key}
+                </div>
+                <div className="text-xs text-gray-600 sm:text-sm">
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
+          {isEmpty && (
+            <p className="mt-3 text-center text-xs text-amber-600 sm:text-sm">
+              Server belum punya data SKDN untuk periode & wilayah ini
+            </p>
+          )}
+        </>
+      }
+    >
+      <ResponsiveContainer width="100%" height={chartHeight}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" tick={{ fontSize: isMobile ? 12 : 14 }} />
+          <YAxis domain={yDomain} tick={{ fontSize: isMobile ? 12 : 14 }} />
+          <Tooltip
+            formatter={(value: number) => [`${value}`, "Jumlah Balita"]}
+            labelFormatter={(name) => {
+              const item = chartData.find((d) => d.name === name);
+              return item ? `${name} (${item.fullName})` : name;
+            }}
+          />
+          <Bar
+            dataKey="value"
+            radius={[4, 4, 0, 0]}
+            shape={(props: any) => (
+              <rect
+                {...props}
+                fill={BAR_COLORS[props.payload.name] || "#8884d8"}
               />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Info Cards */}
-      <div className="mt-4 sm:mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center transition-opacity duration-300 opacity-100">
-        <div className="p-2 sm:p-3 bg-red-50 rounded-lg">
-          <div className="font-bold text-red-800 text-sm sm:text-base">S</div>
-          <div className="text-xs sm:text-sm text-gray-600">Sasaran</div>
-        </div>
-        <div className="p-2 sm:p-3 bg-yellow-50 rounded-lg">
-          <div className="font-bold text-yellow-800 text-sm sm:text-base">K</div>
-          <div className="text-xs sm:text-sm text-gray-600">KMS</div>
-        </div>
-        <div className="p-2 sm:p-3 bg-green-50 rounded-lg">
-          <div className="font-bold text-green-800 text-sm sm:text-base">D</div>
-          <div className="text-xs sm:text-sm text-gray-600">Ditimbang</div>
-        </div>
-        <div className="p-2 sm:p-3 bg-blue-50 rounded-lg">
-          <div className="font-bold text-blue-800 text-sm sm:text-base">N</div>
-          <div className="text-xs sm:text-sm text-gray-600">Naik BB</div>
-        </div>
-      </div>
-    </div>
+            )}
+          >
+            <LabelList
+              dataKey="value"
+              position="top"
+              fontSize={isMobile ? 10 : 12}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 };
 

@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { LoadingProvider } from "./context/LoadingContext";
 import { queryClient } from "./services/api";
 import { ErrorBoundary } from "./components/error/ErrorBoundary";
@@ -31,6 +31,26 @@ const LoadingSpinner = () => (
   </div>
 );
 
+/**
+ * Menahan layar "Memuat halaman..." selama 300ms pertama.
+ *
+ * Fallback ini mengambil seluruh layar (min-h-screen), jadi kalau chunk rute
+ * sudah turun dalam 100ms — yang biasa terjadi setelah kunjungan pertama atau
+ * di koneksi cepat — yang terlihat hanya kedipan layar penuh. Menunda
+ * kemunculannya membuat navigasi cepat terasa langsung, dan layar pemuatan
+ * tetap muncul kalau memang lambat.
+ */
+const DelayedPageLoader = ({ delayMs = 300 }: { delayMs?: number }) => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs]);
+
+  return visible ? <LoadingSpinner /> : null;
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -39,35 +59,18 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Index />
-                </Suspense>
-              } />
-              <Route path="/team" element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Team />
-                </Suspense>
-              } />
-              <Route path="/kebijakanprivasi" element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <KebijakanPrivasi />
-                </Suspense>
-              } />
-              <Route path="/syaratdanketentuan" element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <SyaratdanKetentuan />
-                </Suspense>
-              } />
+            {/* Satu Suspense untuk semua rute: tiap rute lazy, fallback-nya sama */}
+            <Suspense fallback={<DelayedPageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/kebijakanprivasi" element={<KebijakanPrivasi />} />
+                <Route path="/syaratdanketentuan" element={<SyaratdanKetentuan />} />
 
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={
-                <Suspense fallback={<LoadingSpinner />}>
-                  <NotFound />
-                </Suspense>
-              } />
-            </Routes>
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </LoadingProvider>

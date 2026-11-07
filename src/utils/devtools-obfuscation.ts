@@ -4,67 +4,55 @@
 // Catatan: Ini hanya mengubah tampilan permintaan untuk membuatnya kurang mencolok,
 // bukan benar-benar menyembunyikan mereka (yang tidak mungkin dilakukan melalui JavaScript)
 
+/**
+ * Benar bahwa argumen non-string harus dilewati.
+ *
+ * Versi sebelumnya ditulis sebagai:
+ *   typeof arg === 'string' && arg.includes('API') || arg.includes('fetch')
+ * yang karena presedensi dibaca sebagai
+ *   (typeof arg === 'string' && arg.includes('API')) || arg.includes('fetch')
+ * sehingga untuk argumen non-string cabang kanan tetap dijalankan dan
+ * `arg.includes` melempar TypeError. Karena console.error juga ditimpa,
+ * `console.error('...', errorObject)` di main.tsx ikut melempar di produksi —
+ * error di dalam penangan error.
+ */
+const mentionsApi = (args: unknown[]) =>
+  args.some(
+    (arg) =>
+      typeof arg === 'string' &&
+      (arg.includes('API') || arg.includes('fetch')),
+  );
+
 export const obfuscateNetworkCalls = () => {
-  if (process.env.NODE_ENV === 'production') {
-    // Ganti console.log untuk menyembunyikan aktivitas API di console
-    const originalLog = console.log;
-    const originalWarn = console.warn;
-    const originalError = console.error;
+  if (process.env.NODE_ENV !== 'production') return;
 
-    console.log = (...args) => {
-      if (!args.some(arg => typeof arg === 'string' && arg.includes('API') || arg.includes('fetch'))) {
-        originalLog(...args);
-      }
-    };
+  const originalLog = console.log;
+  const originalWarn = console.warn;
 
-    console.warn = (...args) => {
-      if (!args.some(arg => typeof arg === 'string' && arg.includes('API') || arg.includes('fetch'))) {
-        originalWarn(...args);
-      }
-    };
+  console.log = (...args) => {
+    if (!mentionsApi(args)) originalLog(...args);
+  };
 
-    console.error = (...args) => {
-      if (!args.some(arg => typeof arg === 'string' && arg.includes('API') || arg.includes('fetch'))) {
-        originalError(...args);
-      }
-    };
-  }
-};
+  console.warn = (...args) => {
+    if (!mentionsApi(args)) originalWarn(...args);
+  };
 
-// Fungsi untuk membuat permintaan API tampak seperti permintaan aset statis
-export const createObfuscatedRequest = async (originalUrl: string, options: RequestInit = {}) => {
-  // Ubah URL menjadi bentuk yang terlihat seperti permintaan aset
-  const obfuscatedUrl = `/api/_static/${btoa(originalUrl).replace(/\+/g, '-').replace(/\//g, '_')}.json`;
-
-  // Tapi sebenarnya tetap mengarah ke URL aslinya melalui proxy
-  const response = await fetch(originalUrl, {
-    ...options,
-    headers: {
-      ...options.headers,
-      // Tambahkan header yang membuat tampilan di devtools lebih netral
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest', // Umum digunakan, membuatnya terlihat biasa
-    },
-  });
-
-  return response;
+  // console.error sengaja TIDAK ditimpa: menyaringnya menyembunyikan kegagalan
+  // nyata di produksi tanpa memberi manfaat keamanan apa pun — isi request
+  // tetap terlihat di tab Network.
 };
 
 // Fungsi untuk menonaktifkan beberapa fitur debugging di production
 export const disableDevtoolsDetection = () => {
-  if (process.env.NODE_ENV === 'production') {
-    // Trik untuk menghindari deteksi devtools umum
-    Object.defineProperty(window, 'devtools', {
-      get() {
-        return undefined;
-      }
-    });
+  if (process.env.NODE_ENV !== 'production') return;
 
-    // Atau alternatif lain - membuat deteksi devtools lebih sulit
-    // Ini bukan cara sempurna untuk menyembunyikan permintaan, tapi bisa membantu
-    setInterval(() => {
-      // Ini tidak akan menyembunyikan permintaan, tapi bisa membantu mengurangi aktivitas debugging
-    }, 1000);
-  }
+  Object.defineProperty(window, 'devtools', {
+    get() {
+      return undefined;
+    },
+  });
+
+  // Dihapus: setInterval 1 detik dengan badan kosong. Timer itu tidak
+  // menyembunyikan apa pun, hanya membangunkan tab tiap detik selamanya —
+  // menahan browser dari penghematan daya di tab yang diam.
 };
